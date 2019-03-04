@@ -150,6 +150,7 @@ func (mux *Mux) Serve() error {
 		if err != nil {
 			return err
 		}
+		tempDelay = 0
 
 		go mux.handleConn(conn)
 	}
