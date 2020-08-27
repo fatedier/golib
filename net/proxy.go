@@ -58,7 +58,7 @@ func DialTcpByProxy(proxyStr string, addr string) (c net.Conn, err error) {
 	case "socks5":
 		return DialTcpBySocks5Proxy(proxyUrl.Host, addr, auth)
 	default:
-		err = fmt.Errorf("Proxy URL scheme must be http or socks5, not [%s]", proxyUrl.Scheme)
+		err = fmt.Errorf("Proxy URL scheme must be http or socks5 or ntlm, not [%s]", proxyUrl.Scheme)
 		return
 	}
 }
