@@ -21,7 +21,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/Azure/go-ntlmssp"
 	"golang.org/x/net/proxy"
 )
 
@@ -51,14 +53,71 @@ func DialTcpByProxy(proxyStr string, addr string) (c net.Conn, err error) {
 	switch proxyUrl.Scheme {
 	case "http":
 		return DialTcpByHttpProxy(proxyUrl.Host, addr, auth)
+	case "ntlm":
+		return DialTcpByNTLMHttpProxy(proxyUrl.Host, addr, auth)
 	case "socks5":
 		return DialTcpBySocks5Proxy(proxyUrl.Host, addr, auth)
 	default:
-		err = fmt.Errorf("Proxy URL scheme must be http or socks5, not [%s]", proxyUrl.Scheme)
+		err = fmt.Errorf("Proxy URL scheme must be http or socks5 or ntlm, not [%s]", proxyUrl.Scheme)
 		return
 	}
 }
+func DialTcpByNTLMHttpProxy(proxyHost string, dstAddr string, auth *ProxyAuth) (c net.Conn, err error) {
+	if c, err = net.Dial("tcp", proxyHost); err != nil {
+		return
+	}
 
+	req, err := http.NewRequest("CONNECT", "http://"+dstAddr, nil)
+	if err != nil {
+		return
+	}
+	if auth.Enable {
+		domain := ""
+		_, domain = ntlmssp.GetDomain(auth.Username)
+		negotiateMessage, err := ntlmssp.NewNegotiateMessage(domain, "")
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Add("Proxy-Authorization", "Negotiate "+base64.StdEncoding.EncodeToString(negotiateMessage))
+	}
+	req.Write(c)
+	resp, err := http.ReadResponse(bufio.NewReader(c), req)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body.Close()
+	if auth.Enable && resp.StatusCode == 407 {
+		challenge := resp.Header.Get("Proxy-Authenticate")
+		username, _ := ntlmssp.GetDomain(auth.Username)
+		if strings.HasPrefix(challenge, "Negotiate ") {
+			challengeMessage, err := base64.StdEncoding.DecodeString(challenge[len("Negotiate "):])
+			if err != nil {
+				return nil, err
+			}
+			authenticateMessage, err := ntlmssp.ProcessChallenge(challengeMessage, username, auth.Passwd)
+			if err != nil {
+				return nil, err
+			}
+			req, err := http.NewRequest("CONNECT", "http://"+dstAddr, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Add("Proxy-Authorization", "Negotiate "+base64.StdEncoding.EncodeToString(authenticateMessage))
+			req.Write(c)
+			resp, err = http.ReadResponse(bufio.NewReader(c), req)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body.Close()
+		}
+	}
+	if resp.StatusCode != 200 {
+		err = fmt.Errorf("DialTcpByNTLMHttpProxy error, StatusCode [%d]", resp.StatusCode)
+		return
+	}
+	return
+}
 func DialTcpByHttpProxy(proxyHost string, dstAddr string, auth *ProxyAuth) (c net.Conn, err error) {
 	if c, err = net.Dial("tcp", proxyHost); err != nil {
 		return
