@@ -24,6 +24,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Azure/go-ntlmssp"
 	"golang.org/x/net/proxy"
@@ -65,6 +66,7 @@ type dialOptions struct {
 	protocol  string
 	tlsConfig *tls.Config
 	laddr     string // only use ip, port is random
+	timeout   time.Duration
 
 	dialer func(ctx context.Context, addr string) (c net.Conn, err error)
 
@@ -112,6 +114,7 @@ func newFuncDialOption(f func(*dialOptions)) *funcDialOption {
 func defaultDialOptions() dialOptions {
 	return dialOptions{
 		protocol: "tcp",
+		timeout:  30 * time.Second,
 	}
 }
 
@@ -189,6 +192,12 @@ func WithProtocol(protocol string) DialOption {
 func WithLocalAddr(laddr string) DialOption {
 	return newFuncDialOption(func(do *dialOptions) {
 		do.laddr = laddr
+	})
+}
+
+func WithTimeout(timeout time.Duration) DialOption {
+	return newFuncDialOption(func(do *dialOptions) {
+		do.timeout = timeout
 	})
 }
 
