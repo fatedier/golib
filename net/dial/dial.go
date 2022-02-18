@@ -91,12 +91,12 @@ func DialContext(ctx context.Context, addr string, opts ...DialOption) (c net.Co
 func dial(ctx context.Context, addr string, op dialOptions) (c net.Conn, err error) {
 	switch op.protocol {
 	case "tcp":
-		dialer := &net.Dialer{}
+		dialer := &net.Dialer{
+			Timeout: op.timeout,
+		}
 		if op.laddr != "" {
 			if tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:", op.laddr)); err == nil {
-				dialer = &net.Dialer{
-					LocalAddr: tcpAddr,
-				}
+				dialer.LocalAddr = tcpAddr
 			}
 		}
 		return dialer.DialContext(ctx, "tcp", addr)
