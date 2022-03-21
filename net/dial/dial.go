@@ -92,7 +92,8 @@ func dial(ctx context.Context, addr string, op dialOptions) (c net.Conn, err err
 	switch op.protocol {
 	case "tcp":
 		dialer := &net.Dialer{
-			Timeout: op.timeout,
+			Timeout:   op.timeout,
+			KeepAlive: op.keepAlive,
 		}
 		if op.laddr != "" {
 			if tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:", op.laddr)); err == nil {

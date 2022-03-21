@@ -39,6 +39,7 @@ type Mux struct {
 	// sorted by priority
 	lns             []*listener
 	maxNeedBytesNum uint32
+	keepAlive       time.Duration
 
 	mu sync.RWMutex
 }
@@ -49,6 +50,10 @@ func NewMux(ln net.Listener) (mux *Mux) {
 		lns: make([]*listener, 0),
 	}
 	return
+}
+
+func (mux *Mux) SetKeepAlive(keepAlive time.Duration) {
+	mux.keepAlive = keepAlive
 }
 
 // priority
@@ -162,6 +167,12 @@ func (mux *Mux) handleConn(conn net.Conn) {
 	lns := mux.lns
 	defaultLn := mux.defaultLn
 	mux.mu.RUnlock()
+
+	if mux.keepAlive != 0 {
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			tcpConn.SetKeepAlivePeriod(mux.keepAlive)
+		}
+	}
 
 	sharedConn, rd := gnet.NewSharedConnSize(conn, int(maxNeedBytesNum))
 	data := make([]byte, maxNeedBytesNum)

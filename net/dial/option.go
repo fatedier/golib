@@ -67,6 +67,7 @@ type dialOptions struct {
 	tlsConfig *tls.Config
 	laddr     string // only use ip, port is random
 	timeout   time.Duration
+	keepAlive time.Duration
 
 	dialer func(ctx context.Context, addr string) (c net.Conn, err error)
 
@@ -198,6 +199,12 @@ func WithLocalAddr(laddr string) DialOption {
 func WithTimeout(timeout time.Duration) DialOption {
 	return newFuncDialOption(func(do *dialOptions) {
 		do.timeout = timeout
+	})
+}
+
+func WithKeepAlive(keepAlive time.Duration) DialOption {
+	return newFuncDialOption(func(do *dialOptions) {
+		do.keepAlive = keepAlive
 	})
 }
 
