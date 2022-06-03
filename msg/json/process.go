@@ -38,6 +38,7 @@ func (msgCtl *MsgCtl) readMsg(c io.Reader) (typeByte byte, buffer []byte, err er
 		err = ErrMsgType
 		return
 	}
+
 	var length int64
 	err = binary.Read(c, binary.BigEndian, &length)
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	AeadMaxChunkLength = (1 << 14) - 1
+	AeadMaxTextLength = (1 << 14) - 1
 )
 
 type AeadWriter struct {
@@ -35,10 +35,10 @@ func (w *AeadWriter) Write(src []byte) (n int, err error) {
 
 func (w *AeadWriter) write(src []byte) (n int, err error) {
 	var nBase int
-	if len(src) > AeadMaxChunkLength {
-		handleLength := len(src) % AeadMaxChunkLength
+	if len(src) > AeadMaxTextLength {
+		handleLength := len(src) % AeadMaxTextLength
 		if handleLength == 0 {
-			handleLength = AeadMaxChunkLength
+			handleLength = AeadMaxTextLength
 		}
 		if nBase, err = w.write(src[:len(src)-handleLength]); err != nil {
 			return nBase, err
