@@ -24,23 +24,25 @@ import (
 )
 
 // NewReader returns a new Reader that decrypts bytes from r
-func NewReader(r io.Reader, key []byte) *Reader {
+func NewReader(r io.Reader, key []byte, aead bool) *Reader {
 	key = pbkdf2.Key(key, []byte(DefaultSalt), 64, aes.BlockSize, sha1.New)
 
 	return &Reader{
-		r:   r,
-		key: key,
+		r:    r,
+		key:  key,
+		aead: aead,
 	}
 }
 
 // Reader is an io.Reader that can read encrypted bytes.
 // Now it only supports aes-128-cfb.
 type Reader struct {
-	r   io.Reader
-	dec *cipher.StreamReader
-	key []byte
-	iv  []byte
-	err error
+	r    io.Reader
+	dec  io.Reader
+	key  []byte
+	iv   []byte
+	aead bool
+	err  error
 }
 
 // Read satisfies the io.Reader interface.
@@ -61,9 +63,15 @@ func (r *Reader) Read(p []byte) (nRet int, errRet error) {
 			errRet = err
 			return
 		}
-		r.dec = &cipher.StreamReader{
-			S: cipher.NewCFBDecrypter(block, iv),
-			R: r.r,
+		if r.aead {
+			// FIXME: should we place this in func NewReader and handle the error?
+			aead, _ := cipher.NewGCM(block)
+			r.dec = NewAeadReader(aead, r.r)
+		} else {
+			r.dec = &cipher.StreamReader{
+				S: cipher.NewCFBDecrypter(block, iv),
+				R: r.r,
+			}
 		}
 	}
 

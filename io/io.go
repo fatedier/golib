@@ -42,12 +42,12 @@ func Join(c1 io.ReadWriteCloser, c2 io.ReadWriteCloser) (inCount int64, outCount
 	return
 }
 
-func WithEncryption(rwc io.ReadWriteCloser, key []byte) (io.ReadWriteCloser, error) {
-	w, err := crypto.NewWriter(rwc, key)
+func WithEncryption(rwc io.ReadWriteCloser, key []byte, aead bool) (io.ReadWriteCloser, error) {
+	w, err := crypto.NewWriter(rwc, key, aead)
 	if err != nil {
 		return nil, err
 	}
-	return WrapReadWriteCloser(crypto.NewReader(rwc, key), w, func() error {
+	return WrapReadWriteCloser(crypto.NewReader(rwc, key, aead), w, func() error {
 		return rwc.Close()
 	}), nil
 }

@@ -123,9 +123,9 @@ func TestWithEncryption(t *testing.T) {
 	conn5 := WrapReadWriteCloser(pr5, pw6, nil)
 	conn6 := WrapReadWriteCloser(pr6, pw5, nil)
 
-	encryptStream1, err := WithEncryption(conn3, []byte(key))
+	encryptStream1, err := WithEncryption(conn3, []byte(key), false)
 	assert.NoError(err)
-	encryptStream2, err := WithEncryption(conn4, []byte(key))
+	encryptStream2, err := WithEncryption(conn4, []byte(key), false)
 	assert.NoError(err)
 
 	go Join(conn2, encryptStream1)

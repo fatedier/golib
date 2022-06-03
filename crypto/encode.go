@@ -29,7 +29,7 @@ var (
 )
 
 // NewWriter returns a new Writer that encrypts bytes to w.
-func NewWriter(w io.Writer, key []byte) (*Writer, error) {
+func NewWriter(w io.Writer, key []byte, aead bool) (*Writer, error) {
 	key = pbkdf2.Key(key, []byte(DefaultSalt), 64, aes.BlockSize, sha1.New)
 
 	// random iv
@@ -43,12 +43,22 @@ func NewWriter(w io.Writer, key []byte) (*Writer, error) {
 		return nil, err
 	}
 
-	return &Writer{
-		w: w,
-		enc: &cipher.StreamWriter{
+	var enc io.Writer
+	if aead {
+		aeadCipher, err := cipher.NewGCM(block)
+		if err != nil {
+			return nil, err
+		}
+		enc = NewAeadWriter(aeadCipher, w)
+	} else {
+		enc = &cipher.StreamWriter{
 			S: cipher.NewCFBEncrypter(block, iv),
 			W: w,
-		},
+		}
+	}
+	return &Writer{
+		w:   w,
+		enc: enc,
 		key: key,
 		iv:  iv,
 	}, nil
@@ -58,9 +68,10 @@ func NewWriter(w io.Writer, key []byte) (*Writer, error) {
 // Now it only support aes-128-cfb.
 type Writer struct {
 	w      io.Writer
-	enc    *cipher.StreamWriter
+	enc    io.Writer
 	key    []byte
 	iv     []byte
+	aead   bool
 	ivSend bool
 	err    error
 }
