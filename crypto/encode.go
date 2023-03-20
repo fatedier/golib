@@ -87,3 +87,23 @@ func (w *Writer) Write(p []byte) (nRet int, errRet error) {
 	}
 	return
 }
+
+func Encode(s, key []byte) ([]byte, error) {
+	key = pbkdf2.Key(key, []byte(DefaultSalt), 64, aes.BlockSize, sha1.New)
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	ciphertext := make([]byte, aes.BlockSize+len(s))
+	// random iv
+	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
+	}
+
+	stream := cipher.NewCFBEncrypter(block, iv)
+	stream.XORKeyStream(ciphertext[aes.BlockSize:], s)
+	return ciphertext, nil
+}

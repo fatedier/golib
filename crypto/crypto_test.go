@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCrypto(t *testing.T) {
+func TestCryptoWriterAndReader(t *testing.T) {
 	assert := assert.New(t)
 
 	text := "1234567890abcdefghigklmnopqrstuvwxyzeeeeeeeeeeeeeeeeeeeeeewwwwwwwwwwwwwwwwwwwwwwwwwwzzzzzzzzzzzzzzzzzzzzzzzzdddddddddddddddddddddddddddddddddddddrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrllllllllllllllllllllllllllllllllllqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeewwwwwwwwwwwwwwwwwwwwww"
@@ -38,4 +38,18 @@ func TestCrypto(t *testing.T) {
 	c := bytes.NewBuffer(nil)
 	io.Copy(c, decReader)
 	assert.Equal(text, string(c.Bytes()))
+}
+
+func TestCryptoEncodeAndDecode(t *testing.T) {
+	assert := assert.New(t)
+
+	text := "1234567890abcdefghigklmnopqrstuvwxyzeeeeeeeeeeeee"
+	key := "123456"
+
+	encText, err := Encode([]byte(text), []byte(key))
+	assert.NoError(err)
+
+	decText, err := Decode(encText, []byte(key))
+	assert.NoError(err)
+	assert.Equal(text, string(decText))
 }

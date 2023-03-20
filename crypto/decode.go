@@ -18,6 +18,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/sha1"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -72,4 +73,25 @@ func (r *Reader) Read(p []byte) (nRet int, errRet error) {
 		r.err = errRet
 	}
 	return
+}
+
+// decode bytes by aes cfb
+func Decode(s, key []byte) ([]byte, error) {
+	key = pbkdf2.Key(key, []byte(DefaultSalt), 64, aes.BlockSize, sha1.New)
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(s) < aes.BlockSize {
+		return nil, fmt.Errorf("ciphertext too short")
+	}
+
+	iv := s[:aes.BlockSize]
+	s = s[aes.BlockSize:]
+
+	stream := cipher.NewCFBDecrypter(block, iv)
+	stream.XORKeyStream(s, s)
+	return s, nil
 }
