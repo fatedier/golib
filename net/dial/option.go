@@ -20,7 +20,6 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
-	"math"
 	"net"
 	"net/http"
 	"strings"
@@ -83,6 +82,7 @@ type BeforeHook struct {
 
 const (
 	DefaultAfterHookPriority = 10
+	WithTLSConfigPriority    = 100
 )
 
 type AfterHookFunc func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error)
@@ -175,7 +175,7 @@ func WithTLSConfig(tlsConfig *tls.Config) DialOption {
 		}
 
 		do.afterHooks = append(do.afterHooks, AfterHook{
-			Priority: math.MaxUint64,
+			Priority: WithTLSConfigPriority,
 			Hook: func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {
 				conn, err := tlsAfterHook(c, tlsConfig)
 				return ctx, conn, err
