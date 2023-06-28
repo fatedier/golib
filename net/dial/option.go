@@ -169,13 +169,17 @@ func WithProxyAuth(auth *ProxyAuth) DialOption {
 }
 
 func WithTLSConfig(tlsConfig *tls.Config) DialOption {
+	return WithTLSConfigAndPriority(math.MaxUint64, tlsConfig)
+}
+
+func WithTLSConfigAndPriority(priority uint64, tlsConfig *tls.Config) DialOption {
 	return newFuncDialOption(func(do *dialOptions) {
 		if tlsConfig == nil {
 			return
 		}
 
 		do.afterHooks = append(do.afterHooks, AfterHook{
-			Priority: math.MaxUint64,
+			Priority: priority,
 			Hook: func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {
 				conn, err := tlsAfterHook(c, tlsConfig)
 				return ctx, conn, err
@@ -209,6 +213,9 @@ func WithKeepAlive(keepAlive time.Duration) DialOption {
 }
 
 func WithAfterHook(hook AfterHook) DialOption {
+	if hook.Priority == 0 {
+		hook.Priority = DefaultAfterHookPriority
+	}
 	return newFuncDialOption(func(do *dialOptions) {
 		do.afterHooks = append(do.afterHooks, hook)
 	})
