@@ -170,7 +170,11 @@ func (mux *Mux) handleConn(conn net.Conn) {
 
 	if mux.keepAlive != 0 {
 		if tcpConn, ok := conn.(*net.TCPConn); ok {
-			tcpConn.SetKeepAlivePeriod(mux.keepAlive)
+			if mux.keepAlive > 0 {
+				tcpConn.SetKeepAlivePeriod(mux.keepAlive)
+			} else {
+				tcpConn.SetKeepAlive(false)
+			}
 		}
 	}
 
