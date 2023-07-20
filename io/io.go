@@ -20,6 +20,7 @@ import (
 
 	"github.com/fatedier/golib/crypto"
 	"github.com/fatedier/golib/pool"
+	"github.com/golang/snappy"
 )
 
 // Join two io.ReadWriteCloser and do some operations.
@@ -60,14 +61,24 @@ func WithEncryption(rwc io.ReadWriteCloser, key []byte) (io.ReadWriteCloser, err
 }
 
 func WithCompression(rwc io.ReadWriteCloser) io.ReadWriteCloser {
+	sr := snappy.NewReader(rwc)
+	sw := snappy.NewWriter(rwc)
+	return WrapReadWriteCloser(sr, sw, func() error {
+		err := rwc.Close()
+		return err
+	})
+}
+
+func WithCompressionFromPool(rwc io.ReadWriteCloser) (out io.ReadWriteCloser, release func()) {
 	sr := pool.GetSnappyReader(rwc)
 	sw := pool.GetSnappyWriter(rwc)
 	return WrapReadWriteCloser(sr, sw, func() error {
-		err := rwc.Close()
-		pool.PutSnappyReader(sr)
-		pool.PutSnappyWriter(sw)
-		return err
-	})
+			err := rwc.Close()
+			return err
+		}), func() {
+			pool.PutSnappyReader(sr)
+			pool.PutSnappyWriter(sw)
+		}
 }
 
 type ReadWriteCloser struct {
@@ -97,35 +108,17 @@ func (rwc *ReadWriteCloser) Write(p []byte) (n int, err error) {
 	return rwc.w.Write(p)
 }
 
-func (rwc *ReadWriteCloser) Close() (errRet error) {
+func (rwc *ReadWriteCloser) Close() error {
 	rwc.mu.Lock()
 	if rwc.closed {
 		rwc.mu.Unlock()
-		return
+		return nil
 	}
 	rwc.closed = true
 	rwc.mu.Unlock()
 
-	var err error
-	if rc, ok := rwc.r.(io.Closer); ok {
-		err = rc.Close()
-		if err != nil {
-			errRet = err
-		}
-	}
-
-	if wc, ok := rwc.w.(io.Closer); ok {
-		err = wc.Close()
-		if err != nil {
-			errRet = err
-		}
-	}
-
 	if rwc.closeFn != nil {
-		err = rwc.closeFn()
-		if err != nil {
-			errRet = err
-		}
+		return rwc.closeFn()
 	}
-	return
+	return nil
 }
