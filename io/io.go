@@ -28,9 +28,9 @@ func Join(c1 io.ReadWriteCloser, c2 io.ReadWriteCloser) (inCount int64, outCount
 	var wait sync.WaitGroup
 	recordErrs := make([]error, 2)
 	pipe := func(number int, to io.ReadWriteCloser, from io.ReadWriteCloser, count *int64) {
+		defer wait.Done()
 		defer to.Close()
 		defer from.Close()
-		defer wait.Done()
 
 		buf := pool.GetBuf(16 * 1024)
 		defer pool.PutBuf(buf)
@@ -69,16 +69,20 @@ func WithCompression(rwc io.ReadWriteCloser) io.ReadWriteCloser {
 	})
 }
 
-func WithCompressionFromPool(rwc io.ReadWriteCloser) (out io.ReadWriteCloser, release func()) {
+// WithCompressionFromPool will get snappy reader and writer from pool.
+// You can recycle the snappy reader and writer by calling the returned recycle function, but it is not necessary.
+func WithCompressionFromPool(rwc io.ReadWriteCloser) (out io.ReadWriteCloser, recycle func()) {
 	sr := pool.GetSnappyReader(rwc)
 	sw := pool.GetSnappyWriter(rwc)
-	return WrapReadWriteCloser(sr, sw, func() error {
-			err := rwc.Close()
-			return err
-		}), func() {
-			pool.PutSnappyReader(sr)
-			pool.PutSnappyWriter(sw)
-		}
+	out = WrapReadWriteCloser(sr, sw, func() error {
+		err := rwc.Close()
+		return err
+	})
+	recycle = func() {
+		pool.PutSnappyReader(sr)
+		pool.PutSnappyWriter(sw)
+	}
+	return
 }
 
 type ReadWriteCloser struct {
