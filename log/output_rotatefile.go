@@ -182,15 +182,19 @@ func (fw *RotateFileWriter) dailyRotate() {
 	fw.mu.Unlock()
 	for {
 		now := fw.clock.Now()
-		y, m, d := now.Add(24 * time.Hour).Date()
-		nextDay := time.Date(y, m, d, 0, 0, 0, 0, now.Location())
-		tm := time.NewTimer(time.Duration(nextDay.UnixNano()-now.UnixNano()) + time.Millisecond)
+		// Calculate the time difference until the next hour.
+		nextHour := now.Truncate(time.Hour).Add(time.Hour)
 		select {
-		case <-tm.C:
-			fw.Rotate()
+		case <-time.After(nextHour.Sub(now)):
 		case <-doneCh:
-			tm.Stop()
 			return
+		}
+
+		// Rotate the log file at 0 hour of the day.
+		if fw.clock.Now().Hour() == 0 {
+			fw.Rotate()
+			// Ensure it's executed only once, even if the waiting period crosses midnight.
+			time.Sleep(time.Minute)
 		}
 	}
 }
