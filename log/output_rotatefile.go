@@ -95,7 +95,7 @@ func (fw *RotateFileWriter) Rotate() error {
 }
 
 func (fw *RotateFileWriter) rotate() error {
-	if err := fw.close(); err != nil {
+	if err := fw.closeFile(); err != nil {
 		return err
 	}
 	if err := fw.openNew(); err != nil {
@@ -191,7 +191,7 @@ func (fw *RotateFileWriter) dailyRotate() {
 		}
 
 		// Rotate the log file at 0 hour of the day.
-		if fw.clock.Now().Hour() == 0 {
+		if nextHour.Hour() == 0 {
 			fw.Rotate()
 			// Ensure it's executed only once, even if the waiting period crosses midnight.
 			time.Sleep(time.Minute)
@@ -263,16 +263,16 @@ func (fw *RotateFileWriter) clearFiles() error {
 func (fw *RotateFileWriter) Close() error {
 	fw.mu.Lock()
 	defer fw.mu.Unlock()
-	return fw.close()
-}
-
-func (fw *RotateFileWriter) close() error {
-	if fw.file == nil {
-		return nil
-	}
 	if fw.done != nil {
 		close(fw.done)
 		fw.done = nil
+	}
+	return fw.closeFile()
+}
+
+func (fw *RotateFileWriter) closeFile() error {
+	if fw.file == nil {
+		return nil
 	}
 	err := fw.file.Close()
 	fw.file = nil
