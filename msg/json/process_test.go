@@ -27,9 +27,7 @@ type StartWorkConn struct {
 	ProxyName string `json:"proxy_name"`
 }
 
-var (
-	TypeStartWorkConn byte = '4'
-)
+var TypeStartWorkConn byte = '4'
 
 func init() {
 	msgCtl.RegisterMsg(TypeStartWorkConn, StartWorkConn{})
@@ -107,5 +105,4 @@ func TestProcess(t *testing.T) {
 	assert.Error(err)
 
 	msgCtl.SetMaxMsgLength(defaultMaxMsgLength)
-	return
 }

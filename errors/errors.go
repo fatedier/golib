@@ -21,7 +21,7 @@ import (
 func PanicToError(fn func()) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("Panic error: %v", r)
+			err = fmt.Errorf("panic error: %v", r)
 		}
 	}()
 

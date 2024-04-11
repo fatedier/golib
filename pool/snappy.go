@@ -27,8 +27,7 @@ var (
 )
 
 func GetSnappyReader(r io.Reader) *snappy.Reader {
-	var x interface{}
-	x = snappyReaderPool.Get()
+	x := snappyReaderPool.Get()
 	if x == nil {
 		return snappy.NewReader(r)
 	}
@@ -42,8 +41,7 @@ func PutSnappyReader(sr *snappy.Reader) {
 }
 
 func GetSnappyWriter(w io.Writer) *snappy.Writer {
-	var x interface{}
-	x = snappyWriterPool.Get()
+	x := snappyWriterPool.Get()
 	if x == nil {
 		return snappy.NewWriter(w)
 	}

@@ -15,9 +15,10 @@
 package pool
 
 import (
+	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPutBuf(t *testing.T) {
@@ -35,17 +36,32 @@ func TestPutBuf(t *testing.T) {
 }
 
 func TestGetBuf(t *testing.T) {
-	assert := assert.New(t)
+	require := require.New(t)
 
 	buf := GetBuf(200)
-	assert.Len(buf, 200)
+	require.Len(buf, 200)
 
 	buf = GetBuf(1025)
-	assert.Len(buf, 1025)
+	require.Len(buf, 1025)
 
 	buf = GetBuf(2 * 1024)
-	assert.Len(buf, 2*1024)
+	require.Len(buf, 2*1024)
 
 	buf = GetBuf(5 * 2000)
-	assert.Len(buf, 5*2000)
+	require.Len(buf, 5*2000)
+}
+
+func TestBuffer(t *testing.T) {
+	require := require.New(t)
+
+	bufPool := NewBuffer(100)
+
+	buf := bufPool.Get()
+	require.Len(buf, 100)
+	copy(buf, []byte("hello"))
+
+	bufPool.Put(buf)
+	buf = bufPool.Get()
+	require.Len(buf, 100)
+	require.True(bytes.Contains(buf, []byte("hello")))
 }

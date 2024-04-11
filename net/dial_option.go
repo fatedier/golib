@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dial
+package net
 
 import (
 	"bufio"
@@ -30,9 +30,7 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-var (
-	supportProxyTypes = []string{"socks5", "http", "ntlm"}
-)
+var supportedDialProxyTypes = []string{"socks5", "http", "ntlm"}
 
 type ProxyAuth struct {
 	Username string
@@ -45,15 +43,15 @@ func (m DialMetas) Value(key interface{}) interface{} {
 	return m[key]
 }
 
-type metaKey string
+type dialMetaKey string
 
 const (
-	ctxKey       metaKey = "meta"
-	proxyAuthKey metaKey = "proxyAuth"
+	dialCtxKey   dialMetaKey = "meta"
+	proxyAuthKey dialMetaKey = "proxyAuth"
 )
 
 func GetDialMetasFromContext(ctx context.Context) DialMetas {
-	metas, ok := ctx.Value(ctxKey).(DialMetas)
+	metas, ok := ctx.Value(dialCtxKey).(DialMetas)
 	if !ok || metas == nil {
 		metas = make(DialMetas)
 	}
@@ -64,7 +62,6 @@ type dialOptions struct {
 	proxyType string
 	proxyAddr string
 	protocol  string
-	tlsConfig *tls.Config
 	laddr     string // only use ip, port is random
 	timeout   time.Duration
 	keepAlive time.Duration
@@ -88,7 +85,7 @@ const (
 type AfterHookFunc func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error)
 
 type AfterHook struct {
-	// smaller value will be called first, 0 is reserverd for private use.
+	// smaller value will be called first, 0 is reserved for private use.
 	// If caller set this 0, use DefaultAfterHookPriority instead.
 	Priority uint64
 	Hook     AfterHookFunc
@@ -221,26 +218,6 @@ func WithAfterHook(hook AfterHook) DialOption {
 	})
 }
 
-func newSocks5ProxyAfterHook(addr string, op dialOptions) AfterHook {
-	return AfterHook{
-		Priority: 0,
-		Hook: func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {
-			conn, err := socks5ProxyAfterHook(ctx, c, addr)
-			return ctx, conn, err
-		},
-	}
-}
-
-func newNTLMHTTPProxyAfterHook(addr string, op dialOptions) AfterHook {
-	return AfterHook{
-		Priority: 0,
-		Hook: func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {
-			conn, err := ntlmHTTPProxyAfterHook(ctx, c, addr)
-			return ctx, conn, err
-		},
-	}
-}
-
 type funcDialContext func(ctx context.Context, networkd string, addr string) (c net.Conn, err error)
 
 func (fdc funcDialContext) DialContext(ctx context.Context, network string, addr string) (c net.Conn, err error) {
@@ -290,7 +267,7 @@ func httpProxyAfterHook(ctx context.Context, conn net.Conn, addr string) (net.Co
 		req.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(proxyAuth.Username+":"+proxyAuth.Passwd)))
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0")
-	req.Write(conn)
+	_ = req.Write(conn)
 
 	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
 	if err != nil {
@@ -322,7 +299,7 @@ func ntlmHTTPProxyAfterHook(ctx context.Context, conn net.Conn, addr string) (ne
 		req.Header.Add("Proxy-Authorization", "Negotiate "+base64.StdEncoding.EncodeToString(negotiateMessage))
 	}
 
-	req.Write(conn)
+	_ = req.Write(conn)
 	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
 	if err != nil {
 		return nil, err
@@ -348,7 +325,7 @@ func ntlmHTTPProxyAfterHook(ctx context.Context, conn net.Conn, addr string) (ne
 			}
 
 			req.Header.Add("Proxy-Authorization", "Negotiate "+base64.StdEncoding.EncodeToString(authenticateMessage))
-			req.Write(conn)
+			_ = req.Write(conn)
 			resp, err = http.ReadResponse(bufio.NewReader(conn), req)
 			if err != nil {
 				return nil, err

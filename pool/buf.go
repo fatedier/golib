@@ -28,17 +28,19 @@ var (
 
 func GetBuf(size int) []byte {
 	var x interface{}
-	if size >= 16*1024 {
+	switch {
+	case size >= 16*1024:
 		x = bufPool16k.Get()
-	} else if size >= 5*1024 {
+	case size >= 5*1024:
 		x = bufPool5k.Get()
-	} else if size >= 2*1024 {
+	case size >= 2*1024:
 		x = bufPool2k.Get()
-	} else if size >= 1*1024 {
+	case size >= 1*1024:
 		x = bufPool1k.Get()
-	} else {
+	default:
 		x = bufPool.Get()
 	}
+
 	if x == nil {
 		return make([]byte, size)
 	}
@@ -51,15 +53,38 @@ func GetBuf(size int) []byte {
 
 func PutBuf(buf []byte) {
 	size := cap(buf)
-	if size >= 16*1024 {
+	switch {
+	case size >= 16*1024:
 		bufPool16k.Put(buf)
-	} else if size >= 5*1024 {
+	case size >= 5*1024:
 		bufPool5k.Put(buf)
-	} else if size >= 2*1024 {
+	case size >= 2*1024:
 		bufPool2k.Put(buf)
-	} else if size >= 1*1024 {
+	case size >= 1*1024:
 		bufPool1k.Put(buf)
-	} else {
+	default:
 		bufPool.Put(buf)
 	}
+}
+
+type Buffer struct {
+	pool sync.Pool
+}
+
+func NewBuffer(size int) *Buffer {
+	return &Buffer{
+		pool: sync.Pool{
+			New: func() interface{} {
+				return make([]byte, size)
+			},
+		},
+	}
+}
+
+func (p *Buffer) Get() []byte {
+	return p.pool.Get().([]byte)
+}
+
+func (p *Buffer) Put(buf []byte) {
+	p.pool.Put(buf)
 }

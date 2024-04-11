@@ -95,11 +95,9 @@ func (l *Limiter) Acquire(timeout time.Duration) (err error) {
 
 	if timeout == 0 {
 		// no timeout limit
-		select {
-		case _, ok := <-l.poolCh:
-			if !ok {
-				err = ErrClosed
-			}
+		_, ok := <-l.poolCh
+		if !ok {
+			err = ErrClosed
 		}
 	} else {
 		select {
@@ -121,11 +119,10 @@ func (l *Limiter) Release() {
 	}); err != nil {
 		atomic.AddInt64(&l.current, -1)
 	}
-
 }
 
 func (l *Limiter) SetLimit(num int64) {
-	gerr.PanicToError(func() {
+	_ = gerr.PanicToError(func() {
 		l.limitCh <- num
 	})
 }

@@ -18,9 +18,10 @@ import (
 	"io"
 	"sync"
 
+	"github.com/golang/snappy"
+
 	"github.com/fatedier/golib/crypto"
 	"github.com/fatedier/golib/pool"
-	"github.com/golang/snappy"
 )
 
 // Join two io.ReadWriteCloser and do some operations.
@@ -64,8 +65,8 @@ func WithCompression(rwc io.ReadWriteCloser) io.ReadWriteCloser {
 	sr := snappy.NewReader(rwc)
 	sw := snappy.NewWriter(rwc)
 	return WrapReadWriteCloser(sr, sw, func() error {
-		err := rwc.Close()
-		return err
+		_ = sw.Close()
+		return rwc.Close()
 	})
 }
 

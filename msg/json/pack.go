@@ -59,8 +59,8 @@ func (msgCtl *MsgCtl) Pack(msg Message) ([]byte, error) {
 	}
 
 	buffer := bytes.NewBuffer(nil)
-	buffer.WriteByte(typeByte)
-	binary.Write(buffer, binary.BigEndian, int64(len(content)))
-	buffer.Write(content)
+	_ = buffer.WriteByte(typeByte)
+	_ = binary.Write(buffer, binary.BigEndian, int64(len(content)))
+	_, _ = buffer.Write(content)
 	return buffer.Bytes(), nil
 }

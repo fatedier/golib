@@ -40,3 +40,19 @@ func BenchmarkLog(b *testing.B) {
 		logger.Debugf("debug %d", i)
 	}
 }
+
+func TestLogOffset(t *testing.T) {
+	require := require.New(t)
+	testBuffer := bytes.NewBuffer(nil)
+	logger := New(
+		WithLevel(DebugLevel),
+		WithCaller(true),
+		WithOutput(testBuffer),
+	)
+	wrapLog := func() {
+		logger.Log(InfoLevel, 1, "test")
+	}
+	wrapLog()
+
+	require.Contains(testBuffer.String(), "log/log_test.go:55")
+}

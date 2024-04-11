@@ -24,9 +24,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-var (
-	DefaultSalt = "crypto"
-)
+var DefaultSalt = "crypto"
 
 // NewWriter returns a new Writer that encrypts bytes to w.
 func NewWriter(w io.Writer, key []byte) (*Writer, error) {

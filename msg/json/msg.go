@@ -18,9 +18,7 @@ import (
 	"reflect"
 )
 
-var (
-	defaultMaxMsgLength int64 = 10240
-)
+var defaultMaxMsgLength int64 = 10240
 
 // Message wraps socket packages for communicating between frpc and frps.
 type Message interface{}

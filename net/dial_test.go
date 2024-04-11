@@ -1,4 +1,4 @@
-package dial
+package net
 
 import (
 	"net"

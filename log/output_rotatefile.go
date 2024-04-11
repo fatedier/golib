@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"slices"
@@ -114,7 +113,7 @@ func (fw *RotateFileWriter) openExistingOrNew() error {
 		return fmt.Errorf("get stat of logfile error: %s", err)
 	}
 
-	file, err := os.OpenFile(fw.cfg.FileName, os.O_APPEND|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(fw.cfg.FileName, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fw.openNew()
 	}
@@ -123,12 +122,12 @@ func (fw *RotateFileWriter) openExistingOrNew() error {
 }
 
 func (fw *RotateFileWriter) openNew() error {
-	err := os.MkdirAll(fw.dir(), 0755)
+	err := os.MkdirAll(fw.dir(), 0o755)
 	if err != nil {
 		return fmt.Errorf("mkdir directories [%s] for new logfile error: %s", fw.dir(), err)
 	}
 
-	mode := os.FileMode(0600)
+	mode := os.FileMode(0o600)
 	info, err := os.Stat(fw.cfg.FileName)
 	if err == nil {
 		mode = info.Mode()
@@ -192,7 +191,7 @@ func (fw *RotateFileWriter) dailyRotate() {
 
 		// Rotate the log file at 0 hour of the day.
 		if nextHour.Hour() == 0 {
-			fw.Rotate()
+			_ = fw.Rotate()
 			// Ensure it's executed only once, even if the waiting period crosses midnight.
 			time.Sleep(time.Minute)
 		}
@@ -205,7 +204,7 @@ type logFileInfo struct {
 }
 
 func (fw *RotateFileWriter) oldLogFiles() ([]logFileInfo, error) {
-	files, err := ioutil.ReadDir(fw.dir())
+	entries, err := os.ReadDir(fw.dir())
 	if err != nil {
 		return nil, fmt.Errorf("read log file directory error: %s", err)
 	}
@@ -215,12 +214,17 @@ func (fw *RotateFileWriter) oldLogFiles() ([]logFileInfo, error) {
 	ext := filepath.Ext(filename)
 	prefix := filename[:len(filename)-len(ext)] + "."
 
-	for _, f := range files {
-		if f.IsDir() {
+	for _, entry := range entries {
+		if entry.IsDir() {
 			continue
 		}
-		if t, err := fw.parseTimeFromBackupName(f.Name(), prefix, ext); err == nil {
-			fileInfos = append(fileInfos, logFileInfo{info: f, t: t})
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		if t, err := fw.parseTimeFromBackupName(entry.Name(), prefix, ext); err == nil {
+			fileInfos = append(fileInfos, logFileInfo{info: info, t: t})
 			continue
 		}
 	}

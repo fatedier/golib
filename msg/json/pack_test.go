@@ -25,8 +25,10 @@ import (
 
 type TestStruct struct{}
 
-type Ping struct{}
-type Pong struct{}
+type (
+	Ping struct{}
+	Pong struct{}
+)
 
 type Login struct {
 	User string `json:"user"`
@@ -49,19 +51,15 @@ func init() {
 func TestPack(t *testing.T) {
 	assert := assert.New(t)
 
-	var (
-		msg    Message
-		buffer []byte
-		err    error
-	)
+	var msg Message
 	// error type
 	msg = &TestStruct{}
-	buffer, err = msgCtl.Pack(msg)
+	_, err := msgCtl.Pack(msg)
 	assert.Equal(err, ErrMsgType)
 
 	// correct
 	msg = &Ping{}
-	buffer, err = msgCtl.Pack(msg)
+	buffer, err := msgCtl.Pack(msg)
 	assert.NoError(err)
 	b := bytes.NewBuffer(nil)
 	b.WriteByte(TypePing)
@@ -73,16 +71,12 @@ func TestPack(t *testing.T) {
 func TestUnPack(t *testing.T) {
 	assert := assert.New(t)
 
-	var (
-		msg Message
-		err error
-	)
 	// error message type
-	msg, err = msgCtl.UnPack('-', []byte("{}"))
+	_, err := msgCtl.UnPack('-', []byte("{}"))
 	assert.Error(err)
 
 	// correct
-	msg, err = msgCtl.UnPack(TypePong, []byte("{}"))
+	msg, err := msgCtl.UnPack(TypePong, []byte("{}"))
 	assert.NoError(err)
 	assert.Equal(reflect.TypeOf(msg).Elem(), reflect.TypeOf(Pong{}))
 }

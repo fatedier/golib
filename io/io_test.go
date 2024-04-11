@@ -28,8 +28,10 @@ func TestJoin(t *testing.T) {
 		n   int
 		err error
 	)
-	text1 := "A document that gives tips for writing clear, idiomatic Go code. A must read for any new Go programmer. It augments the tour and the language specification, both of which should be read first."
-	text2 := "A document that specifies the conditions under which reads of a variable in one goroutine can be guaranteed to observe values produced by writes to the same variable in a different goroutine."
+	text1 := "A document that gives tips for writing clear, idiomatic Go code. A must read for any new Go programmer." +
+		" It augments the tour and the language specification, both of which should be read first."
+	text2 := "A document that specifies the conditions under which reads of a variable in one goroutine can be guaranteed" +
+		" to observe values produced by writes to the same variable in a different goroutine."
 
 	// Forward bytes directly.
 	pr, pw := io.Pipe()
@@ -104,8 +106,13 @@ func TestWithEncryption(t *testing.T) {
 		n   int
 		err error
 	)
-	text1 := "Go is expressive, concise, clean, and efficient. Its concurrency mechanisms make it easy to write programs that get the most out of multicore and networked machines, while its novel type system enables flexible and modular program construction. Go compiles quickly to machine code yet has the convenience of garbage collection and the power of run-time reflection. It's a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language."
-	text2 := "An interactive introduction to Go in three sections. The first section covers basic syntax and data structures; the second discusses methods and interfaces; and the third introduces Go's concurrency primitives. Each section concludes with a few exercises so you can practice what you've learned. You can take the tour online or install it locally with"
+	text1 := "Go is expressive, concise, clean, and efficient. Its concurrency mechanisms make it easy to write programs" +
+		"that get the most out of multicore and networked machines, while its novel type system enables flexible and modular program construction." +
+		" Go compiles quickly to machine code yet has the convenience of garbage collection and the power of run-time reflection." +
+		" It's a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language."
+	text2 := "An interactive introduction to Go in three sections. The first section covers basic syntax and data structures; " +
+		"the second discusses methods and interfaces; and the third introduces Go's concurrency primitives." +
+		" Each section concludes with a few exercises so you can practice what you've learned. You can take the tour online or install it locally with"
 	key := "authkey"
 
 	// Forward enrypted bytes.
@@ -140,6 +147,6 @@ func TestWithEncryption(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(text1, string(buf[:n]))
 
-	n, err = conn1.Read(buf)
+	_, err = conn1.Read(buf)
 	assert.NoError(err)
 }

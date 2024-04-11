@@ -2,7 +2,7 @@ package mux
 
 import (
 	"bufio"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func runHttpSvr(ln net.Listener) *httptest.Server {
+func runHTTPSvr(ln net.Listener) *httptest.Server {
 	svr := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("http service"))
 	}))
@@ -21,7 +21,7 @@ func runHttpSvr(ln net.Listener) *httptest.Server {
 	return svr
 }
 
-func runHttpsSvr(ln net.Listener) *httptest.Server {
+func runHTTPSSvr(ln net.Listener) *httptest.Server {
 	svr := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("https service"))
 	}))
@@ -48,7 +48,7 @@ func runEchoSvr(ln net.Listener) {
 	}()
 }
 
-func runTcpSvr(ln net.Listener, respContent string) {
+func runTCPSvr(ln net.Listener, respContent string) {
 	go func() {
 		for {
 			conn, err := ln.Accept()
@@ -73,15 +73,15 @@ func TestMux(t *testing.T) {
 	assert.NoError(err)
 
 	mux := NewMux(ln)
-	httpLn := mux.ListenHttp(0)
-	httpsLn := mux.ListenHttps(0)
+	httpLn := mux.ListenHTTP(0)
+	httpsLn := mux.ListenHTTPS(0)
 	defaultLn := mux.DefaultListener()
 	go mux.Serve()
 	time.Sleep(100 * time.Millisecond)
 
-	httpSvr := runHttpSvr(httpLn)
+	httpSvr := runHTTPSvr(httpLn)
 	defer httpSvr.Close()
-	httpsSvr := runHttpsSvr(httpsLn)
+	httpsSvr := runHTTPSSvr(httpsLn)
 	defer httpsSvr.Close()
 	runEchoSvr(defaultLn)
 	defer ln.Close()
@@ -89,7 +89,7 @@ func TestMux(t *testing.T) {
 	// test http service
 	resp, err := http.Get(httpSvr.URL)
 	assert.NoError(err)
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	assert.NoError(err)
 	assert.Equal("http service", string(data))
 
@@ -97,7 +97,7 @@ func TestMux(t *testing.T) {
 	client := httpsSvr.Client()
 	resp, err = client.Get(httpsSvr.URL)
 	assert.NoError(err)
-	data, err = ioutil.ReadAll(resp.Body)
+	data, err = io.ReadAll(resp.Body)
 	assert.NoError(err)
 	assert.Equal("https service", string(data))
 
@@ -120,21 +120,13 @@ func TestMuxPriority(t *testing.T) {
 
 	mux := NewMux(ln)
 	ln1 := mux.Listen(0, 2, func(data []byte) bool {
-		if data[0] == '1' {
-			return true
-		} else {
-			return false
-		}
+		return data[0] == '1'
 	})
 	ln2 := mux.Listen(1, 2, func(data []byte) bool {
-		if data[0] == '1' {
-			return true
-		} else {
-			return false
-		}
+		return data[0] == '1'
 	})
-	runTcpSvr(ln1, "aaa")
-	runTcpSvr(ln2, "bbb")
+	runTCPSvr(ln1, "aaa")
+	runTCPSvr(ln2, "bbb")
 	go mux.Serve()
 	time.Sleep(100 * time.Millisecond)
 
@@ -163,21 +155,13 @@ func TestMuxPriority(t *testing.T) {
 	// priority 0, '1' -> 'bbb'
 	// priority 1, '1' -> 'aaa'
 	ln1 = mux.Listen(0, 2, func(data []byte) bool {
-		if data[0] == '1' {
-			return true
-		} else {
-			return false
-		}
+		return data[0] == '1'
 	})
 	ln2 = mux.Listen(1, 2, func(data []byte) bool {
-		if data[0] == '2' {
-			return true
-		} else {
-			return false
-		}
+		return data[0] == '2'
 	})
-	runTcpSvr(ln2, "aaa")
-	runTcpSvr(ln1, "bbb")
+	runTCPSvr(ln2, "aaa")
+	runTCPSvr(ln1, "bbb")
 
 	conn, err = net.Dial("tcp", ln.Addr().String())
 	assert.NoError(err)

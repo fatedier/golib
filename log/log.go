@@ -13,7 +13,7 @@ import (
 	"github.com/fatedier/golib/clock"
 )
 
-type LogWriter interface {
+type Writer interface {
 	WriteLog([]byte, Level, time.Time) (n int, err error)
 }
 
@@ -68,46 +68,54 @@ func (l *Logger) clone() *Logger {
 }
 
 func (l *Logger) Trace(args ...interface{}) {
-	l.log(TraceLevel, "", args...)
+	l.log(TraceLevel, 0, "", args...)
 }
 
 func (l *Logger) Debug(args ...interface{}) {
-	l.log(DebugLevel, "", args...)
+	l.log(DebugLevel, 0, "", args...)
 }
 
 func (l *Logger) Info(args ...interface{}) {
-	l.log(InfoLevel, "", args...)
+	l.log(InfoLevel, 0, "", args...)
 }
 
 func (l *Logger) Warn(args ...interface{}) {
-	l.log(WarnLevel, "", args...)
+	l.log(WarnLevel, 0, "", args...)
 }
 
 func (l *Logger) Error(args ...interface{}) {
-	l.log(ErrorLevel, "", args...)
+	l.log(ErrorLevel, 0, "", args...)
+}
+
+func (l *Logger) Log(level Level, offset int, args ...interface{}) {
+	l.log(level, offset, "", args...)
 }
 
 func (l *Logger) Tracef(msg string, args ...interface{}) {
-	l.log(TraceLevel, msg, args...)
+	l.log(TraceLevel, 0, msg, args...)
 }
 
 func (l *Logger) Debugf(msg string, args ...interface{}) {
-	l.log(DebugLevel, msg, args...)
+	l.log(DebugLevel, 0, msg, args...)
 }
 
 func (l *Logger) Infof(msg string, args ...interface{}) {
-	l.log(InfoLevel, msg, args...)
+	l.log(InfoLevel, 0, msg, args...)
 }
 
 func (l *Logger) Warnf(msg string, args ...interface{}) {
-	l.log(WarnLevel, msg, args...)
+	l.log(WarnLevel, 0, msg, args...)
 }
 
 func (l *Logger) Errorf(msg string, args ...interface{}) {
-	l.log(ErrorLevel, msg, args...)
+	l.log(ErrorLevel, 0, msg, args...)
 }
 
-func (l *Logger) log(level Level, msg string, args ...interface{}) {
+func (l *Logger) Logf(level Level, offset int, msg string, args ...interface{}) {
+	l.log(level, offset, msg, args...)
+}
+
+func (l *Logger) log(level Level, offset int, msg string, args ...interface{}) {
 	if !l.level.Enabled(level) {
 		return
 	}
@@ -129,14 +137,14 @@ func (l *Logger) log(level Level, msg string, args ...interface{}) {
 	buffer.WriteByte(' ')
 
 	if l.callerEnabled {
-		buffer.WriteString(getCallerPrefix(3 + l.callerSkip))
+		buffer.WriteString(getCallerPrefix(3 + l.callerSkip + offset))
 		buffer.WriteByte(' ')
 	}
 
 	buffer.WriteString(getMessage(msg, args))
 	buffer.WriteByte('\n')
 
-	if lw, ok := l.out.(LogWriter); ok {
+	if lw, ok := l.out.(Writer); ok {
 		l.outMu.Lock()
 		defer l.outMu.Unlock()
 		_, _ = lw.WriteLog(buffer.Bytes(), level, when)
@@ -144,7 +152,7 @@ func (l *Logger) log(level Level, msg string, args ...interface{}) {
 	}
 	l.outMu.Lock()
 	defer l.outMu.Unlock()
-	l.out.Write(buffer.Bytes())
+	_, _ = l.out.Write(buffer.Bytes())
 }
 
 func getMessage(template string, fmtArgs []interface{}) string {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dial
+package net
 
 import (
 	"context"
@@ -36,7 +36,7 @@ func DialContext(ctx context.Context, addr string, opts ...DialOption) (c net.Co
 
 	// call before dial hooks
 	dialMetas := make(DialMetas)
-	ctx = context.WithValue(ctx, ctxKey, dialMetas)
+	ctx = context.WithValue(ctx, dialCtxKey, dialMetas)
 
 	for _, v := range op.beforeHooks {
 		ctx = v.Hook(ctx, addr)
@@ -44,7 +44,7 @@ func DialContext(ctx context.Context, addr string, opts ...DialOption) (c net.Co
 
 	if op.proxyAddr != "" {
 		support := false
-		for _, v := range supportProxyTypes {
+		for _, v := range supportedDialProxyTypes {
 			if op.proxyType == v {
 				support = true
 				break
@@ -79,7 +79,7 @@ func DialContext(ctx context.Context, addr string, opts ...DialOption) (c net.Co
 	for _, v := range op.afterHooks {
 		ctx, c, err = v.Hook(ctx, c, addr)
 		if err != nil {
-			// Close last valid connection if any error occured
+			// Close last valid connection if any error occurred
 			lastSuccConn.Close()
 			return nil, err
 		}
@@ -120,8 +120,8 @@ func dialKCPServer(addr string) (c net.Conn, err error) {
 	kcpConn.SetWindowSize(128, 512)
 	kcpConn.SetMtu(1350)
 	kcpConn.SetACKNoDelay(false)
-	kcpConn.SetReadBuffer(4194304)
-	kcpConn.SetWriteBuffer(4194304)
+	_ = kcpConn.SetReadBuffer(4194304)
+	_ = kcpConn.SetWriteBuffer(4194304)
 	c = kcpConn
 	return
 }

@@ -25,7 +25,10 @@ import (
 func TestCryptoWriterAndReader(t *testing.T) {
 	assert := assert.New(t)
 
-	text := "1234567890abcdefghigklmnopqrstuvwxyzeeeeeeeeeeeeeeeeeeeeeewwwwwwwwwwwwwwwwwwwwwwwwwwzzzzzzzzzzzzzzzzzzzzzzzzdddddddddddddddddddddddddddddddddddddrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrllllllllllllllllllllllllllllllllllqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeewwwwwwwwwwwwwwwwwwwwww"
+	text := "1234567890abcdefghigklmnopqrstuvwxyzeeeeeeeeeeeeeeeeeeeeeewwwwwwwwwwwwwwwwwwwwwwwwww" +
+		"zzzzzzzzzzzzzzzzzzzzzzzzdddddddddddddddddddddddddddddddddddddrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr" +
+		"llllllllllllllllllllllllllllllllllqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" +
+		"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeewwwwwwwwwwwwwwwwwwwwww"
 	key := "123456"
 
 	buffer := bytes.NewBuffer(nil)
@@ -37,7 +40,7 @@ func TestCryptoWriterAndReader(t *testing.T) {
 
 	c := bytes.NewBuffer(nil)
 	io.Copy(c, decReader)
-	assert.Equal(text, string(c.Bytes()))
+	assert.Equal(text, c.String())
 }
 
 func TestCryptoEncodeAndDecode(t *testing.T) {

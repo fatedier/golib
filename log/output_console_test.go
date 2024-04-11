@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	testingclock "github.com/fatedier/golib/clock/testing"
 	"github.com/stretchr/testify/require"
+
+	testingclock "github.com/fatedier/golib/clock/testing"
 )
 
 func TestConsoleWriter(t *testing.T) {
