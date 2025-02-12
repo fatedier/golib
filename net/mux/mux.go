@@ -103,6 +103,10 @@ func (mux *Mux) DefaultListener() net.Listener {
 	return mux.defaultLn
 }
 
+func (mux *Mux) Close() error {
+	return mux.ln.Close()
+}
+
 func (mux *Mux) release(ln *listener) bool {
 	result := false
 	mux.mu.Lock()
