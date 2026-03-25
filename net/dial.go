@@ -51,7 +51,7 @@ func DialContext(ctx context.Context, addr string, opts ...DialOption) (c net.Co
 			}
 		}
 		if !support {
-			return nil, fmt.Errorf("ProxyType must be http or socks5 or ntlm, not [%s]", op.proxyType)
+			return nil, fmt.Errorf("ProxyType must be http, https, socks5 or ntlm, not [%s]", op.proxyType)
 		}
 	}
 
