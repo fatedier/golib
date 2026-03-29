@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-var supportedDialProxyTypes = []string{"socks5", "http", "ntlm"}
+var supportedDialProxyTypes = []string{"socks5", "http", "https", "ntlm"}
 
 type ProxyAuth struct {
 	Username string
@@ -46,8 +46,9 @@ func (m DialMetas) Value(key interface{}) interface{} {
 type dialMetaKey string
 
 const (
-	dialCtxKey   dialMetaKey = "meta"
-	proxyAuthKey dialMetaKey = "proxyAuth"
+	dialCtxKey        dialMetaKey = "meta"
+	proxyAuthKey      dialMetaKey = "proxyAuth"
+	proxyTLSConfigKey dialMetaKey = "proxyTLSConfig"
 )
 
 func GetDialMetasFromContext(ctx context.Context) DialMetas {
@@ -137,6 +138,12 @@ func WithProxy(proxyType string, address string) DialOption {
 				conn, err := httpProxyAfterHook(ctx, c, addr)
 				return ctx, conn, err
 			}
+		case "https":
+			proxyAddress := address
+			hook = func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {
+				conn, err := httpsProxyAfterHook(ctx, c, addr, proxyAddress)
+				return ctx, conn, err
+			}
 		case "ntlm":
 			hook = func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {
 				conn, err := ntlmHTTPProxyAfterHook(ctx, c, addr)
@@ -159,6 +166,21 @@ func WithProxyAuth(auth *ProxyAuth) DialOption {
 			Hook: func(ctx context.Context, addr string) context.Context {
 				metas := GetDialMetasFromContext(ctx)
 				metas[proxyAuthKey] = auth
+				return ctx
+			},
+		})
+	})
+}
+
+func WithProxyTLSConfig(tlsConfig *tls.Config) DialOption {
+	return newFuncDialOption(func(do *dialOptions) {
+		if tlsConfig == nil {
+			return
+		}
+		do.beforeHooks = append(do.beforeHooks, BeforeHook{
+			Hook: func(ctx context.Context, addr string) context.Context {
+				metas := GetDialMetasFromContext(ctx)
+				metas[proxyTLSConfigKey] = tlsConfig
 				return ctx
 			},
 		})
@@ -279,6 +301,33 @@ func httpProxyAfterHook(ctx context.Context, conn net.Conn, addr string) (net.Co
 	}
 
 	return conn, nil
+}
+
+func httpsProxyAfterHook(ctx context.Context, conn net.Conn, addr string, proxyAddr string) (net.Conn, error) {
+	meta := GetDialMetasFromContext(ctx)
+	proxyTLSConfig, _ := meta.Value(proxyTLSConfigKey).(*tls.Config)
+	if proxyTLSConfig == nil {
+		proxyTLSConfig = &tls.Config{}
+	}
+	// Auto-set ServerName from proxy address if not explicitly configured.
+	if proxyTLSConfig.ServerName == "" && !proxyTLSConfig.InsecureSkipVerify {
+		host, _, err := net.SplitHostPort(proxyAddr)
+		if err != nil {
+			host = proxyAddr
+		}
+		proxyTLSConfig = proxyTLSConfig.Clone()
+		proxyTLSConfig.ServerName = host
+	}
+	tlsConn := tls.Client(conn, proxyTLSConfig)
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		return nil, fmt.Errorf("TLS handshake with HTTPS proxy: %w", err)
+	}
+	c, err := httpProxyAfterHook(ctx, tlsConn, addr)
+	if err != nil {
+		tlsConn.Close()
+		return nil, err
+	}
+	return c, nil
 }
 
 func ntlmHTTPProxyAfterHook(ctx context.Context, conn net.Conn, addr string) (net.Conn, error) {
