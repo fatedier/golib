@@ -27,7 +27,7 @@ var (
 )
 
 func GetBuf(size int) []byte {
-	var x interface{}
+	var x any
 	switch {
 	case size >= 16*1024:
 		x = bufPool16k.Get()
@@ -74,7 +74,7 @@ type Buffer struct {
 func NewBuffer(size int) *Buffer {
 	return &Buffer{
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return make([]byte, size)
 			},
 		},

@@ -80,7 +80,7 @@ func (msgCtl *MsgCtl) ReadMsgInto(c io.Reader, msg Message) (err error) {
 	return msgCtl.UnPackInto(buffer, msg)
 }
 
-func (msgCtl *MsgCtl) WriteMsg(c io.Writer, msg interface{}) (err error) {
+func (msgCtl *MsgCtl) WriteMsg(c io.Writer, msg any) (err error) {
 	buffer, err := msgCtl.Pack(msg)
 	if err != nil {
 		return

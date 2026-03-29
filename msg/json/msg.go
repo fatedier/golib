@@ -21,7 +21,7 @@ import (
 var defaultMaxMsgLength int64 = 10240
 
 // Message wraps socket packages for communicating between frpc and frps.
-type Message interface{}
+type Message any
 
 type MsgCtl struct {
 	typeMap     map[byte]reflect.Type
@@ -38,7 +38,7 @@ func NewMsgCtl() *MsgCtl {
 	}
 }
 
-func (msgCtl *MsgCtl) RegisterMsg(typeByte byte, msg interface{}) {
+func (msgCtl *MsgCtl) RegisterMsg(typeByte byte, msg any) {
 	msgCtl.typeMap[typeByte] = reflect.TypeOf(msg)
 	msgCtl.typeByteMap[reflect.TypeOf(msg)] = typeByte
 }

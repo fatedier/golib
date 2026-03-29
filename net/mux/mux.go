@@ -147,8 +147,8 @@ func (mux *Mux) Serve() error {
 			} else {
 				tempDelay *= 2
 			}
-			if max := 1 * time.Second; tempDelay > max {
-				tempDelay = max
+			if maxDelay := 1 * time.Second; tempDelay > maxDelay {
+				tempDelay = maxDelay
 			}
 			time.Sleep(tempDelay)
 			continue

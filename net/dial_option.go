@@ -37,9 +37,9 @@ type ProxyAuth struct {
 	Passwd   string
 }
 
-type DialMetas map[interface{}]interface{}
+type DialMetas map[any]any
 
-func (m DialMetas) Value(key interface{}) interface{} {
+func (m DialMetas) Value(key any) any {
 	return m[key]
 }
 
@@ -200,8 +200,7 @@ func WithTLSConfigAndPriority(priority uint64, tlsConfig *tls.Config) DialOption
 		do.afterHooks = append(do.afterHooks, AfterHook{
 			Priority: priority,
 			Hook: func(ctx context.Context, c net.Conn, addr string) (context.Context, net.Conn, error) {
-				conn, err := tlsAfterHook(c, tlsConfig)
-				return ctx, conn, err
+				return ctx, tlsAfterHook(c, tlsConfig), nil
 			},
 		})
 	})
@@ -309,8 +308,8 @@ func httpsProxyAfterHook(ctx context.Context, conn net.Conn, addr string, proxyA
 	if proxyTLSConfig == nil {
 		proxyTLSConfig = &tls.Config{}
 	}
-	// Auto-set ServerName from proxy address if not explicitly configured.
-	if proxyTLSConfig.ServerName == "" && !proxyTLSConfig.InsecureSkipVerify {
+	// Auto-set ServerName from proxy address whenever the caller leaves it unset.
+	if proxyTLSConfig.ServerName == "" {
 		host, _, err := net.SplitHostPort(proxyAddr)
 		if err != nil {
 			host = proxyAddr
@@ -339,9 +338,7 @@ func ntlmHTTPProxyAfterHook(ctx context.Context, conn net.Conn, addr string) (ne
 		return nil, err
 	}
 	if proxyAuth != nil {
-		domain := ""
-		_, domain, _ = ntlmssp.GetDomain(proxyAuth.Username)
-		negotiateMessage, err := ntlmssp.NewNegotiateMessage(domain, "")
+		negotiateMessage, err := ntlmssp.NewNegotiateMessage("", "")
 		if err != nil {
 			return nil, err
 		}
@@ -357,14 +354,13 @@ func ntlmHTTPProxyAfterHook(ctx context.Context, conn net.Conn, addr string) (ne
 
 	if proxyAuth != nil && resp.StatusCode == 407 {
 		challenge := resp.Header.Get("Proxy-Authenticate")
-		username, _, domainNeeded := ntlmssp.GetDomain(proxyAuth.Username)
 
 		if strings.HasPrefix(challenge, "Negotiate ") {
 			challengeMessage, err := base64.StdEncoding.DecodeString(challenge[len("Negotiate "):])
 			if err != nil {
 				return nil, err
 			}
-			authenticateMessage, err := ntlmssp.ProcessChallenge(challengeMessage, username, proxyAuth.Passwd, domainNeeded)
+			authenticateMessage, err := ntlmssp.NewAuthenticateMessage(challengeMessage, proxyAuth.Username, proxyAuth.Passwd, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -389,9 +385,9 @@ func ntlmHTTPProxyAfterHook(ctx context.Context, conn net.Conn, addr string) (ne
 	return conn, nil
 }
 
-func tlsAfterHook(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
+func tlsAfterHook(conn net.Conn, tlsConfig *tls.Config) net.Conn {
 	if tlsConfig == nil {
-		return conn, nil
+		return conn
 	}
-	return tls.Client(conn, tlsConfig), nil
+	return tls.Client(conn, tlsConfig)
 }

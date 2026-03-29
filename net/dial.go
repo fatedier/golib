@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"slices"
 	"sort"
 
 	kcp "github.com/xtaci/kcp-go/v5"
@@ -43,13 +44,7 @@ func DialContext(ctx context.Context, addr string, opts ...DialOption) (c net.Co
 	}
 
 	if op.proxyAddr != "" {
-		support := false
-		for _, v := range supportedDialProxyTypes {
-			if op.proxyType == v {
-				support = true
-				break
-			}
-		}
+		support := slices.Contains(supportedDialProxyTypes, op.proxyType)
 		if !support {
 			return nil, fmt.Errorf("ProxyType must be http, https, socks5 or ntlm, not [%s]", op.proxyType)
 		}

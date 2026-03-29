@@ -1,10 +1,22 @@
 package net
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func mustTestProxyURL(t *testing.T, scheme, username, passwd, host string) string {
+	t.Helper()
+
+	u := &url.URL{
+		Scheme: scheme,
+		Host:   host,
+		User:   url.UserPassword(username, passwd),
+	}
+	return u.String()
+}
 
 func TestParseProxyURL(t *testing.T) {
 	require := require.New(t)
@@ -23,7 +35,7 @@ func TestParseProxyURL(t *testing.T) {
 			expectAddress:   "127.0.0.1",
 		},
 		{
-			proxyURL:        "http://admin:abc@127.0.0.1:8080",
+			proxyURL:        mustTestProxyURL(t, "http", "admin", "abc", "127.0.0.1:8080"),
 			expectProxyType: "http",
 			expectAddress:   "127.0.0.1:8080",
 			expectAuth: &ProxyAuth{
@@ -35,6 +47,15 @@ func TestParseProxyURL(t *testing.T) {
 			proxyURL:        "socks5://admin:abc@127.0.0.1:9000",
 			expectProxyType: "socks5",
 			expectAddress:   "127.0.0.1:9000",
+			expectAuth: &ProxyAuth{
+				Username: "admin",
+				Passwd:   "abc",
+			},
+		},
+		{
+			proxyURL:        mustTestProxyURL(t, "https", "admin", "abc", "127.0.0.1:8443"),
+			expectProxyType: "https",
+			expectAddress:   "127.0.0.1:8443",
 			expectAuth: &ProxyAuth{
 				Username: "admin",
 				Passwd:   "abc",
