@@ -78,7 +78,7 @@ func TestUnPack(t *testing.T) {
 	// correct
 	msg, err := msgCtl.UnPack(TypePong, []byte("{}"))
 	assert.NoError(err)
-	assert.Equal(reflect.TypeOf(msg).Elem(), reflect.TypeOf(Pong{}))
+	assert.Equal(reflect.TypeOf(msg).Elem(), reflect.TypeFor[Pong]())
 }
 
 func TestUnPackInto(t *testing.T) {

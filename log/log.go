@@ -67,55 +67,55 @@ func (l *Logger) clone() *Logger {
 	return clone
 }
 
-func (l *Logger) Trace(args ...interface{}) {
+func (l *Logger) Trace(args ...any) {
 	l.log(TraceLevel, 0, "", args...)
 }
 
-func (l *Logger) Debug(args ...interface{}) {
+func (l *Logger) Debug(args ...any) {
 	l.log(DebugLevel, 0, "", args...)
 }
 
-func (l *Logger) Info(args ...interface{}) {
+func (l *Logger) Info(args ...any) {
 	l.log(InfoLevel, 0, "", args...)
 }
 
-func (l *Logger) Warn(args ...interface{}) {
+func (l *Logger) Warn(args ...any) {
 	l.log(WarnLevel, 0, "", args...)
 }
 
-func (l *Logger) Error(args ...interface{}) {
+func (l *Logger) Error(args ...any) {
 	l.log(ErrorLevel, 0, "", args...)
 }
 
-func (l *Logger) Log(level Level, offset int, args ...interface{}) {
+func (l *Logger) Log(level Level, offset int, args ...any) {
 	l.log(level, offset, "", args...)
 }
 
-func (l *Logger) Tracef(msg string, args ...interface{}) {
+func (l *Logger) Tracef(msg string, args ...any) {
 	l.log(TraceLevel, 0, msg, args...)
 }
 
-func (l *Logger) Debugf(msg string, args ...interface{}) {
+func (l *Logger) Debugf(msg string, args ...any) {
 	l.log(DebugLevel, 0, msg, args...)
 }
 
-func (l *Logger) Infof(msg string, args ...interface{}) {
+func (l *Logger) Infof(msg string, args ...any) {
 	l.log(InfoLevel, 0, msg, args...)
 }
 
-func (l *Logger) Warnf(msg string, args ...interface{}) {
+func (l *Logger) Warnf(msg string, args ...any) {
 	l.log(WarnLevel, 0, msg, args...)
 }
 
-func (l *Logger) Errorf(msg string, args ...interface{}) {
+func (l *Logger) Errorf(msg string, args ...any) {
 	l.log(ErrorLevel, 0, msg, args...)
 }
 
-func (l *Logger) Logf(level Level, offset int, msg string, args ...interface{}) {
+func (l *Logger) Logf(level Level, offset int, msg string, args ...any) {
 	l.log(level, offset, msg, args...)
 }
 
-func (l *Logger) log(level Level, offset int, msg string, args ...interface{}) {
+func (l *Logger) log(level Level, offset int, msg string, args ...any) {
 	if !l.level.Enabled(level) {
 		return
 	}
@@ -155,7 +155,7 @@ func (l *Logger) log(level Level, offset int, msg string, args ...interface{}) {
 	_, _ = l.out.Write(buffer.Bytes())
 }
 
-func getMessage(template string, fmtArgs []interface{}) string {
+func getMessage(template string, fmtArgs []any) string {
 	if len(fmtArgs) == 0 {
 		return template
 	}
