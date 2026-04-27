@@ -19,10 +19,10 @@ type Limiter struct {
 	releaseCh chan struct{}
 	limitCh   chan int64
 
-	current int64
-	waiting int64
-	limit   int64
-	closed  int64
+	current atomic.Int64
+	waiting atomic.Int64
+	limit   atomic.Int64
+	closed  atomic.Int64
 }
 
 func NewLimiter(initLimit int64) (l *Limiter) {
@@ -30,8 +30,8 @@ func NewLimiter(initLimit int64) (l *Limiter) {
 		poolCh:    make(chan struct{}),
 		releaseCh: make(chan struct{}),
 		limitCh:   make(chan int64),
-		limit:     initLimit,
 	}
+	l.limit.Store(initLimit)
 	go l.manager()
 	return
 }
@@ -39,17 +39,17 @@ func NewLimiter(initLimit int64) (l *Limiter) {
 func (l *Limiter) manager() {
 	var err error
 	for {
-		if l.current < l.limit {
+		if l.current.Load() < l.limit.Load() {
 			err = gerr.PanicToError(func() {
 				select {
 				case l.poolCh <- struct{}{}:
-					atomic.AddInt64(&l.current, 1)
+					l.current.Add(1)
 				case <-l.releaseCh:
-					if l.current > 0 {
-						atomic.AddInt64(&l.current, -1)
+					if l.current.Load() > 0 {
+						l.current.Add(-1)
 					}
 				case newLimit := <-l.limitCh:
-					atomic.StoreInt64(&l.limit, newLimit)
+					l.limit.Store(newLimit)
 				}
 			})
 			if err != nil {
@@ -63,23 +63,23 @@ func (l *Limiter) manager() {
 
 		select {
 		case <-l.releaseCh:
-			atomic.AddInt64(&l.current, -1)
+			l.current.Add(-1)
 		case newLimit := <-l.limitCh:
-			atomic.StoreInt64(&l.limit, newLimit)
+			l.limit.Store(newLimit)
 		}
 	}
 }
 
 func (l *Limiter) LimitNum() int64 {
-	return atomic.LoadInt64(&l.limit)
+	return l.limit.Load()
 }
 
 func (l *Limiter) RunningNum() int64 {
-	return atomic.LoadInt64(&l.current)
+	return l.current.Load()
 }
 
 func (l *Limiter) WaitingNum() int64 {
-	return atomic.LoadInt64(&l.waiting)
+	return l.waiting.Load()
 }
 
 // Acquire will wait for an available resource.
@@ -87,10 +87,10 @@ func (l *Limiter) WaitingNum() int64 {
 // Return ErrTimeout if no resource available after timeout duration.
 // Return ErrClosed if this Limiter is closed.
 func (l *Limiter) Acquire(timeout time.Duration) (err error) {
-	atomic.AddInt64(&l.waiting, 1)
+	l.waiting.Add(1)
 
 	defer func() {
-		atomic.AddInt64(&l.waiting, -1)
+		l.waiting.Add(-1)
 	}()
 
 	if timeout == 0 {
@@ -117,7 +117,7 @@ func (l *Limiter) Release() {
 	if err := gerr.PanicToError(func() {
 		l.releaseCh <- struct{}{}
 	}); err != nil {
-		atomic.AddInt64(&l.current, -1)
+		l.current.Add(-1)
 	}
 }
 
@@ -128,8 +128,7 @@ func (l *Limiter) SetLimit(num int64) {
 }
 
 func (l *Limiter) Close() {
-	closed := !atomic.CompareAndSwapInt64(&l.closed, 0, 1)
-	if !closed {
+	if l.closed.CompareAndSwap(0, 1) {
 		close(l.poolCh)
 	}
 }

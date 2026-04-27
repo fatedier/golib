@@ -61,6 +61,20 @@ func WithEncryption(rwc io.ReadWriteCloser, key []byte) (io.ReadWriteCloser, err
 	}), nil
 }
 
+func WithAEADEncryption(rwc io.ReadWriteCloser, opts crypto.AEADStreamOptions) (io.ReadWriteCloser, error) {
+	w, err := crypto.NewAEADStreamWriter(rwc, opts)
+	if err != nil {
+		return nil, err
+	}
+	r, err := crypto.NewAEADStreamReader(rwc, opts)
+	if err != nil {
+		return nil, err
+	}
+	return WrapReadWriteCloser(r, w, func() error {
+		return rwc.Close()
+	}), nil
+}
+
 func WithCompression(rwc io.ReadWriteCloser) io.ReadWriteCloser {
 	sr := snappy.NewReader(rwc)
 	sw := snappy.NewWriter(rwc)
