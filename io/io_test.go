@@ -19,6 +19,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/fatedier/golib/crypto"
 )
 
 func TestJoin(t *testing.T) {
@@ -149,4 +152,43 @@ func TestWithEncryption(t *testing.T) {
 
 	_, err = conn1.Read(buf)
 	assert.NoError(err)
+}
+
+func TestWithAEADEncryption(t *testing.T) {
+	text1 := "Go is expressive, concise, clean, and efficient. Its concurrency mechanisms make it easy to write programs."
+	text2 := "An interactive introduction to Go in three sections."
+	key := []byte("0123456789abcdef0123456789abcdef")
+
+	pr, pw := io.Pipe()
+	pr2, pw2 := io.Pipe()
+	conn1 := WrapReadWriteCloser(pr, pw2, nil)
+	conn2 := WrapReadWriteCloser(pr2, pw, nil)
+
+	opts := crypto.AEADStreamOptions{
+		Algorithm: crypto.AEADAlgorithmXChaCha20Poly1305,
+		Key:       key,
+	}
+	encryptStream1, err := WithAEADEncryption(conn1, opts)
+	require.NoError(t, err)
+	encryptStream2, err := WithAEADEncryption(conn2, opts)
+	require.NoError(t, err)
+
+	buf := make([]byte, 256)
+
+	go func() {
+		_, _ = encryptStream1.Write([]byte(text1))
+	}()
+	n, err := encryptStream2.Read(buf)
+	require.NoError(t, err)
+	require.Equal(t, text1, string(buf[:n]))
+
+	go func() {
+		_, _ = encryptStream2.Write([]byte(text2))
+	}()
+	n, err = encryptStream1.Read(buf)
+	require.NoError(t, err)
+	require.Equal(t, text2, string(buf[:n]))
+
+	require.NoError(t, encryptStream1.Close())
+	require.NoError(t, encryptStream2.Close())
 }
