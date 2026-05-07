@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	bufPool256k sync.Pool
 	bufPool128k sync.Pool
 	bufPool16k  sync.Pool
 	bufPool5k   sync.Pool
@@ -30,6 +31,8 @@ var (
 func GetBuf(size int) []byte {
 	var x any
 	switch {
+	case size >= 256*1024:
+		x = bufPool256k.Get()
 	case size >= 128*1024:
 		x = bufPool128k.Get()
 	case size >= 16*1024:
@@ -57,6 +60,8 @@ func GetBuf(size int) []byte {
 func PutBuf(buf []byte) {
 	size := cap(buf)
 	switch {
+	case size >= 256*1024:
+		bufPool256k.Put(buf)
 	case size >= 128*1024:
 		bufPool128k.Put(buf)
 	case size >= 16*1024:
