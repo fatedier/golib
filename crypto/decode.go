@@ -35,7 +35,7 @@ func NewReader(r io.Reader, key []byte) *Reader {
 }
 
 // Reader is an io.Reader that can read encrypted bytes.
-// Now it only supports aes-128-ctr.
+// Now it only supports aes-128-cfb.
 type Reader struct {
 	r   io.Reader
 	dec *cipher.StreamReader
@@ -63,7 +63,7 @@ func (r *Reader) Read(p []byte) (nRet int, errRet error) {
 			return
 		}
 		r.dec = &cipher.StreamReader{
-			S: cipher.NewCTR(block, iv),
+			S: cipher.NewCFBDecrypter(block, iv),
 			R: r.r,
 		}
 	}
@@ -75,7 +75,7 @@ func (r *Reader) Read(p []byte) (nRet int, errRet error) {
 	return
 }
 
-// decode bytes by aes ctr
+// decode bytes by aes cfb
 func Decode(s, key []byte) ([]byte, error) {
 	key = pbkdf2.Key(key, []byte(DefaultSalt), 64, aes.BlockSize, sha1.New)
 
@@ -91,7 +91,7 @@ func Decode(s, key []byte) ([]byte, error) {
 	iv := s[:aes.BlockSize]
 	s = s[aes.BlockSize:]
 
-	stream := cipher.NewCTR(block, iv)
+	stream := cipher.NewCFBDecrypter(block, iv)
 	stream.XORKeyStream(s, s)
 	return s, nil
 }

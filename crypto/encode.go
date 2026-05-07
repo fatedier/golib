@@ -44,7 +44,7 @@ func NewWriter(w io.Writer, key []byte) (*Writer, error) {
 	return &Writer{
 		w: w,
 		enc: &cipher.StreamWriter{
-			S: cipher.NewCTR(block, iv),
+			S: cipher.NewCFBEncrypter(block, iv),
 			W: w,
 		},
 		key: key,
@@ -101,7 +101,7 @@ func Encode(s, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	stream := cipher.NewCTR(block, iv)
+	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], s)
 	return ciphertext, nil
 }
