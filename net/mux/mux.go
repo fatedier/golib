@@ -108,9 +108,15 @@ func (mux *Mux) Close() error {
 }
 
 func (mux *Mux) release(ln *listener) bool {
-	result := false
 	mux.mu.Lock()
 	defer mux.mu.Unlock()
+
+	if mux.defaultLn == ln {
+		mux.defaultLn = nil
+		return true
+	}
+
+	result := false
 	lns := mux.copyLns()
 
 	for i, l := range lns {

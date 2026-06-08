@@ -172,3 +172,30 @@ func TestMuxPriority(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal("bbb", string(data[:n]))
 }
+
+func TestDefaultListenerCloseUnblocksAccept(t *testing.T) {
+	assert := assert.New(t)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:")
+	assert.NoError(err)
+	defer ln.Close()
+
+	mux := NewMux(ln)
+	defaultLn := mux.DefaultListener()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := defaultLn.Accept()
+		done <- err
+	}()
+
+	err = defaultLn.Close()
+	assert.NoError(err)
+
+	select {
+	case err := <-done:
+		assert.Error(err)
+	case <-time.After(time.Second):
+		assert.Fail("Accept did not return after DefaultListener.Close")
+	}
+}
