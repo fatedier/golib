@@ -26,6 +26,7 @@ var httpHeadBytes = map[string]struct{}{
 	"OPT": {},
 	"TRA": {},
 	"PAT": {},
+	"PRI": {},
 }
 
 var HTTPMatchFunc MatchFunc = func(data []byte) bool {

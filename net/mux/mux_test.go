@@ -10,7 +10,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+const http2ClientPreface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 func runHTTPSvr(ln net.Listener) *httptest.Server {
 	svr := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -171,6 +174,140 @@ func TestMuxPriority(t *testing.T) {
 	n, err = conn.Read(data)
 	assert.NoError(err)
 	assert.Equal("bbb", string(data[:n]))
+}
+
+func TestHTTPMatchFunc(t *testing.T) {
+	require.Equal(t, uint32(3), HTTPNeedBytesNum)
+
+	tests := []struct {
+		name string
+		data string
+		want bool
+	}{
+		{name: "GET", data: "GET / HTTP/1.1\r\n\r\n", want: true},
+		{name: "HEAD", data: "HEAD / HTTP/1.1\r\n\r\n", want: true},
+		{name: "POST", data: "POST / HTTP/1.1\r\n\r\n", want: true},
+		{name: "PUT", data: "PUT / HTTP/1.1\r\n\r\n", want: true},
+		{name: "DELETE", data: "DELETE / HTTP/1.1\r\n\r\n", want: true},
+		{name: "CONNECT", data: "CONNECT example.com:443 HTTP/1.1\r\n\r\n", want: true},
+		{name: "OPTIONS", data: "OPTIONS * HTTP/1.1\r\n\r\n", want: true},
+		{name: "TRACE", data: "TRACE / HTTP/1.1\r\n\r\n", want: true},
+		{name: "PATCH", data: "PATCH / HTTP/1.1\r\n\r\n", want: true},
+		{name: "HTTP/2 client preface", data: http2ClientPreface, want: true},
+		{name: "PRI prefix", data: "PRI", want: true},
+		{name: "non HTTP", data: "SSH-2.0-client\r\n"},
+		{name: "empty", data: ""},
+		{name: "short P", data: "P"},
+		{name: "short PR", data: "PR"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, HTTPMatchFunc([]byte(tt.data)))
+		})
+	}
+}
+
+func TestHTTPListenerPriorKnowledgeRouting(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      string
+		wantRoute string
+	}{
+		{
+			name:      "HTTP/1 through HTTP listener",
+			data:      "GET / HTTP/1.1\r\n\r\n",
+			wantRoute: "http",
+		},
+		{
+			name:      "full HTTP/2 preface through HTTP listener",
+			data:      http2ClientPreface,
+			wantRoute: "http",
+		},
+		{
+			name:      "non HTTP through default listener",
+			data:      "SSH-2.0-client\r\n",
+			wantRoute: "default",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testMuxRoute(t, tt.data, tt.wantRoute)
+		})
+	}
+}
+
+func testMuxRoute(t *testing.T, data, wantRoute string) {
+	t.Helper()
+
+	baseLn, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	mux := NewMux(baseLn)
+	httpLn := mux.ListenHTTP(0)
+	defaultLn := mux.DefaultListener()
+
+	serveErr := make(chan error, 1)
+	go func() {
+		serveErr <- mux.Serve()
+	}()
+
+	var clientConn net.Conn
+	defer func() {
+		if clientConn != nil {
+			_ = clientConn.Close()
+		}
+		_ = httpLn.Close()
+		_ = defaultLn.Close()
+		_ = mux.Close()
+		select {
+		case err := <-serveErr:
+			assert.ErrorIs(t, err, net.ErrClosed)
+		case <-time.After(time.Second):
+			assert.Fail(t, "Mux.Serve did not return after Mux.Close")
+		}
+	}()
+
+	type routeResult struct {
+		route string
+		data  []byte
+		err   error
+	}
+	resultCh := make(chan routeResult, 2)
+	accept := func(route string, ln net.Listener) {
+		go func() {
+			conn, err := ln.Accept()
+			if err != nil {
+				resultCh <- routeResult{route: route, err: err}
+				return
+			}
+			defer conn.Close()
+
+			received := make([]byte, len(data))
+			_, err = io.ReadFull(conn, received)
+			resultCh <- routeResult{route: route, data: received, err: err}
+		}()
+	}
+	accept("http", httpLn)
+	accept("default", defaultLn)
+
+	clientConn, err = net.DialTimeout("tcp", baseLn.Addr().String(), time.Second)
+	require.NoError(t, err)
+	require.NoError(t, clientConn.SetDeadline(time.Now().Add(time.Second)))
+	n, err := clientConn.Write([]byte(data))
+	require.NoError(t, err)
+	require.Equal(t, len(data), n)
+
+	select {
+	case result := <-resultCh:
+		require.NoError(t, result.err)
+		require.Equal(t, wantRoute, result.route)
+		// SharedConn must replay the three classification bytes so the backend
+		// receives the complete HTTP request or HTTP/2 preface for validation.
+		require.Equal(t, []byte(data), result.data)
+	case <-time.After(time.Second):
+		require.Fail(t, "connection was not routed")
+	}
 }
 
 func TestDefaultListenerCloseUnblocksAccept(t *testing.T) {
